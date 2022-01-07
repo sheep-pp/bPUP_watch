@@ -33,12 +33,12 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);
 static const char *ssid = "MovuinoTest";
 static const char *password = "MovuinoTest";
 // Values from Twilio:
-static const char *account_sid = "AC8fc19e5d92a0229245a08ad8b4efb064";
-static const char *auth_token = "d8ead5ca6e32cea436edd23cb6c0031f";
+static const char *account_sid = "account_sid";
+static const char *auth_token = "auth_token";
 // Twilio phone number of the Arduino:
-static const char *from_number = "+18722015321";
+static const char *from_number = "+********";
 // Phone number and message to be sent:
-static const char *to_number = "+33695463201";
+static const char *to_number = "+********";
 static const char *message = "Old lad probably lying on the floor like bruh. Go to : ";
 //String msg = String("Old lad probably lying on the floor like bruh. Go to : " + gps.location.lat() + gps.location.lng)
 
