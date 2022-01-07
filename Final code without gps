@@ -1,0 +1,123 @@
+// Libraries for fall detection:
+#include "MPU9250.h"
+// Libraries for localization:
+//#include <TinyGPS++.h>
+// Librairies for turning on the pins
+#include <Adafruit_NeoPixel.h>
+
+// Libraries for SMS sending:
+#include <WiFi.h>
+#include "twilio.hpp"
+
+// The tiny GPS object
+//TinyGPSPlus gps;
+
+// Define important constants for fall detection:
+#define FALL_THRESHOLD 8.0f //These thresholds have to be reworked
+#define IMPACT_THRESHOLD 13.0f //These are just test values and are to 
+#define FALL_LENGTH 4000 // be refined
+#define PIN 15 //defining the pins to indicate wether the arduino is on or not
+#define NUMPIXELS 1
+// Variables for fall detection:
+MPU9250 accelerometer ;
+float ax, ay, az, accl ;
+bool hasFallen ;
+// Variables for localization
+//static const int RXPin = 38, TXPin = 39;
+//static const uint32_t GPSBaud = 9600;
+
+// Variable for the pin
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);
+
+// Password and identificators for Twilio:
+static const char *ssid = "MovuinoTest";
+static const char *password = "MovuinoTest";
+// Values from Twilio:
+static const char *account_sid = "AC8fc19e5d92a0229245a08ad8b4efb064";
+static const char *auth_token = "d8ead5ca6e32cea436edd23cb6c0031f";
+// Twilio phone number of the Arduino:
+static const char *from_number = "+18722015321";
+// Phone number and message to be sent:
+static const char *to_number = "+33695463201";
+static const char *message = "Old lad probably lying on the floor like bruh. Go to : ";
+//String msg = String("Old lad probably lying on the floor like bruh. Go to : " + gps.location.lat() + gps.location.lng)
+
+Twilio *twilio;
+
+void setup()
+{
+  Serial.begin(115200);
+//  Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin);
+  pixels.begin(); // Turn on the light
+  //Setup the accelerometer system:
+  Wire.begin();
+  delay(2000);
+  accelerometer.setup(0x69);
+  hasFallen = false ;
+  pixels.show();
+  pixels.setPixelColor(0, pixels.Color(255, 255, 255));
+  pixels.show();
+  // Setup the SMS sending system:
+  Serial.print("Connecting to WiFi network ;");
+  Serial.print(ssid);
+  Serial.println("'...");
+  WiFi.begin(ssid, password);
+  // Leave time for the Arduino to connect to WIFI network:
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Connecting...");
+    delay(500);
+  }
+  Serial.println("Connected!");
+  // Define the sending account:
+  twilio = new Twilio(account_sid, auth_token);
+  //Leave it time to start:
+  delay(1000);
+}
+
+//A fall is characterized by three steps:
+//1) Fall 2) Impact 3) Rest ;
+unsigned int steps = 0 ;
+//Note down when possible fall is detected:
+long unsigned int fallTimeStamp = 0 ;
+void loop()
+{
+  //Get acceleration values for fall detection:
+  if (accelerometer.update())
+  {
+    ax = accelerometer.getAccX() ;
+    ay = accelerometer.getAccY() ;
+    az = accelerometer.getAccZ() ;
+  }
+  //Acceleration vector's magnitude, with disregard
+  //of orientation of the wrist accelerometer:
+  accl = sqrt(ax * ax + ay * ay + az * az) ;
+  //Data analysis:
+  if (accl >= FALL_THRESHOLD && steps == 0)
+  {
+    steps = 1 ; fallTimeStamp = millis() ;
+  }
+  if (accl >= IMPACT_THRESHOLD && steps == 1)
+  {
+    steps = 2 ;
+  }
+  if (accl < FALL_THRESHOLD && steps == 2)
+  {
+    hasFallen = true ;
+  }
+  if (millis() - fallTimeStamp > FALL_LENGTH)
+  {
+    steps = 0 ;
+  }
+
+  //If a fall is detected, send an alert message:
+  if (hasFallen == true)
+  {
+    String response;
+    bool success = twilio->send_message(to_number, from_number, message, response);
+    if (success)
+    {
+      Serial.println("Sent message successfully!");
+      hasFallen = false ;
+    }
+  }
+}
